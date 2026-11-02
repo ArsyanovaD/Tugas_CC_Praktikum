@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyFinance - Catatan Keuangan Harian</title>
+  <style>
+    :root { --blue:#2563eb; --navy:#172554; --bg:#f4f7fb; --muted:#64748b; --green:#16a34a; --red:#dc2626; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial, sans-serif; background:var(--bg); color:#172033; }
+    header { background:linear-gradient(120deg,#1d4ed8,#3b82f6); color:white; padding:28px 7%; }
+    header h1 { margin:0 0 7px; font-size:28px; }
+    header p { margin:0; opacity:.9; }
+    main { max-width:1050px; margin:28px auto; padding:0 18px 40px; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:22px; }
+    .card, .panel { background:white; border-radius:14px; padding:20px; box-shadow:0 5px 18px rgba(15,23,42,.06); }
+    .card small { color:var(--muted); display:block; margin-bottom:10px; }
+    .amount { font-size:25px; font-weight:700; }
+    .income { color:var(--green); } .expense { color:var(--red); }
+    .layout { display:grid; grid-template-columns:340px 1fr; gap:18px; align-items:start; }
+    h2 { font-size:19px; margin:0 0 18px; }
+    label { display:block; font-size:13px; font-weight:600; margin:13px 0 6px; }
+    input, select { width:100%; padding:11px 12px; border:1px solid #dbe2ea; border-radius:8px; font-size:14px; background:white; }
+    button { border:0; border-radius:8px; padding:11px 15px; background:var(--blue); color:white; font-weight:700; cursor:pointer; }
+    button:hover { filter:brightness(.94); }
+    .submit { width:100%; margin-top:17px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:460px; }
+    th,td { text-align:left; padding:13px 9px; border-bottom:1px solid #edf0f4; font-size:14px; }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+    .tag { display:inline-block; border-radius:20px; padding:5px 9px; font-size:12px; background:#eff6ff; color:#1d4ed8; }
+    .delete { background:#fee2e2; color:#b91c1c; padding:7px 10px; font-size:12px; }
+    .empty { color:var(--muted); text-align:center; padding:25px 0; }
+    footer { text-align:center; color:var(--muted); font-size:12px; padding:15px; }
+    @media(max-width:760px) { .cards{grid-template-columns:1fr;} .layout{grid-template-columns:1fr;} header{padding:24px 18px;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MyFinance</h1>
+    <p>Catat pemasukan dan pengeluaranmu dengan lebih mudah.</p>
+  </header>
+
+  <main>
+    <section class="cards">
+      <div class="card"><small>Total Pemasukan</small><div class="amount income" id="income">Rp0</div></div>
+      <div class="card"><small>Total Pengeluaran</small><div class="amount expense" id="expense">Rp0</div></div>
+      <div class="card"><small>Saldo Saat Ini</small><div class="amount" id="balance">Rp0</div></div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <h2>Tambah Transaksi</h2>
+        <form id="transactionForm">
+          <label for="description">Nama transaksi</label>
+          <input id="description" type="text" placeholder="Contoh: Uang makan" required maxlength="50">
+          <label for="amount">Jumlah (Rp)</label>
+          <input id="amount" type="number" min="1" step="1" placeholder="Contoh: 25000" required>
+          <label for="type">Jenis transaksi</label>
+          <select id="type"><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
+          <button class="submit" type="submit">+ Tambahkan</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Riwayat Transaksi</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Transaksi</th><th>Jenis</th><th>Jumlah</th><th>Aksi</th></tr></thead>
+            <tbody id="transactionList"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="emptyMessage">Belum ada transaksi. Tambahkan transaksi pertamamu!</p>
+      </div>
+    </section>
+  </main>
+  <footer>MyFinance · Project Praktikum Cloud Computing</footer>
+
+  <script>
+    // Data disimpan pada browser menggunakan localStorage.
+    let transactions = JSON.parse(localStorage.getItem("myfinance_transactions") || "[]");
+    const rupiah = value => new Intl.NumberFormat("id-ID", {
+      style:"currency", currency:"IDR", maximumFractionDigits:0
+    }).format(value);
+
+    function render() {
+      const income = transactions.filter(t => t.type === "income").reduce((s,t) => s + t.amount, 0);
+      const expense = transactions.filter(t => t.type === "expense").reduce((s,t) => s + t.amount, 0);
+      document.getElementById("income").textContent = rupiah(income);
+      document.getElementById("expense").textContent = rupiah(expense);
+      document.getElementById("balance").textContent = rupiah(income - expense);
+
+      const list = document.getElementById("transactionList");
+      const empty = document.getElementById("emptyMessage");
+      list.innerHTML = "";
+      empty.style.display = transactions.length ? "none" : "block";
+      transactions.forEach((t, index) => {
+        const row = document.createElement("tr");
+        const name = document.createElement("td"); name.textContent = t.description;
+        const type = document.createElement("td");
+        const tag = document.createElement("span"); tag.className = "tag";
+        tag.textContent = t.type === "income" ? "Pemasukan" : "Pengeluaran";
+        type.appendChild(tag);
+        const amount = document.createElement("td");
+        amount.textContent = (t.type === "income" ? "+ " : "- ") + rupiah(t.amount);
+        amount.className = t.type === "income" ? "income" : "expense";
+        const action = document.createElement("td");
+        const del = document.createElement("button"); del.className = "delete";
+        del.textContent = "Hapus"; del.addEventListener("click", () => removeTransaction(index));
+        action.appendChild(del);
+        row.append(name, type, amount, action); list.appendChild(row);
+      });
+      localStorage.setItem("myfinance_transactions", JSON.stringify(transactions));
+    }
+
+    function removeTransaction(index) {
+      transactions.splice(index, 1);
+      render();
+    }
+
+    document.getElementById("transactionForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const description = document.getElementById("description").value.trim();
+      const amount = Number(document.getElementById("amount").value);
+      const type = document.getElementById("type").value;
+      if (!description || !Number.isFinite(amount) || amount <= 0) return;
+      transactions.unshift({ description, amount, type });
+      event.target.reset();
+      render();
+    });
+    render();
+  </script>
+</body>
+</html>
